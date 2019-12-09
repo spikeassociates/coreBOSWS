@@ -178,6 +178,18 @@ abstract class VTTask {
 		return array();
 	}
 
+	public function startTask(&$entity) {
+		global $from_wf;
+		$from_wf = true;
+		list($void, $entity) = cbEventHandler::do_filter('corebos.filter.WorkflowTask.start', array($this, $entity));
+	}
+
+	public function endTask($entity) {
+		global $from_wf;
+		cbEventHandler::do_action('corebos.action.WorkflowTask.end', array($this, $entity));
+		$from_wf = false;
+	}
+
 	public function after_retrieve() {
 	}
 
@@ -222,7 +234,8 @@ abstract class VTTask {
 			'groupEmailList' => '(general : (__VtigerMeta__) groupEmailList_Put_Group_Name_Here)',
 			'invitedUsers' => '(general : (__VtigerMeta__) Events_Users_Invited)',
 			'WorkflowFunction' => '(general : (__WorkflowFunction__) Put_Function_Here )',
-			'scan QRCode' => '(general : (__VtigerMeta__) scanQRCode->FieldName)'
+			'scan QRCode' => '(general : (__VtigerMeta__) scanQRCode->FieldName)',
+			'scan BarCode' =>'(general : (__VtigerMeta__) scanBarCode->CodeType->FieldName)'
 		);
 	}
 }

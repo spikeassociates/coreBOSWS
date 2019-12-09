@@ -183,7 +183,7 @@ $iter_modules = array();
 global $from_compile;
 $from_compile = true;
 
-function compile($text, $id, $module, $changeamp = false) {
+function compile($text, $id, $module, $changeamp = false, $applyformat = true) {
 	global $expressionGD;
 	if (empty($text)) {
 		return $text;
@@ -210,10 +210,10 @@ function compile($text, $id, $module, $changeamp = false) {
 			if (substr($marcador, 0, strlen($expressionGD)) == $expressionGD) {
 				$replacewith = eval_expression($marcador, $id);
 			} elseif ($changeamp) {
-				$compiled_marc = retrieve_from_db($marcador, $id, $module);
+				$compiled_marc = retrieve_from_db($marcador, $id, $module, $applyformat);
 				$replacewith = str_replace('&', '&amp;', $compiled_marc);
 			} else {
-				$replacewith = retrieve_from_db($marcador, $id, $module);
+				$replacewith = retrieve_from_db($marcador, $id, $module, $applyformat);
 			}
 			OpenDocument::debugmsg('REPLACE WITH: '.$replacewith);
 			$compiled_text = str_replace('{'.$marcador.'}', $replacewith, $compiled_text);
@@ -230,10 +230,11 @@ function eval_expression($marcador, $entityid) {
 	$lenexp = strlen($expressionGD);
 	$compile_expression = substr($marcador, $lenexp);
 	$type = getSalesEntityType($entityid);
-	if (strpos($compile_expression, '~')>0 && strpos($compile_expression, '¬')>0) {
+	if (strpos($compile_expression, '~')!==false && strpos($compile_expression, '¬')!==false) {
 		$compile_expression = str_replace('~', '{', $compile_expression);
 		$compile_expression = str_replace('¬', '}', $compile_expression);
-		$compile_expression = compile($compile_expression, $entityid, $type);
+		OpenDocument::debugmsg('COMPILE EXPRESSION: GenDocWF substitution: '.$compile_expression.' WITH: '.$type.' ('.$entityid.')');
+		$compile_expression = compile($compile_expression, $entityid, $type, false, false);
 	}
 	OpenDocument::debugmsg('COMPILE EXPRESSION: '.$compile_expression.' WITH: '.$type.' ('.$entityid.')');
 	$entityws = $adb->getone("SELECT id FROM vtiger_ws_entity WHERE name='$type'");
@@ -309,9 +310,7 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 		if ($token_pair[2]=='enletras') {
 			require_once 'modules/cbtranslation/number2string.php';
 			$nuevomarcador = $token_pair[0].'.'.$token_pair[1];
-			$reemplazo = retrieve_from_db($nuevomarcador, $id, $module);
-			$reemplazo = str_replace('.', '', $reemplazo);
-			$reemplazo = str_replace(',', '.', $reemplazo);
+			$reemplazo = retrieve_from_db($nuevomarcador, $id, $module, false);
 			$reemplazo = strtolower(number2string::convert($reemplazo, OpenDocument::$compile_language));
 			return $reemplazo;
 		}
@@ -426,13 +425,13 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 				if (array_key_exists($token_pair[1], $iter_modules[$token_pair[0]][0])) {
 					$reemplazo=getTranslatedString(elimina_llave(html_entity_decode($iter_modules[$token_pair[0]][0][$token_pair[1]], ENT_QUOTES, $default_charset)), $module);
 				} else {
-					$reemplazo=retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0]['productid'], $token_pair[0]);
+					$reemplazo=retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0]['productid'], $token_pair[0], $applyformat);
 				}
 			} else {
-				$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0], $token_pair[0]);
+				$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0], $token_pair[0], $applyformat);
 			}
 		} elseif (areModulesRelated($token_pair[0], $module)) {
-			$reemplazo = retrieve_from_db($marcador, $focus->column_fields[$related_module[$module][$token_pair[0]]], $token_pair[0]);
+			$reemplazo = retrieve_from_db($marcador, $focus->column_fields[$related_module[$module][$token_pair[0]]], $token_pair[0], $applyformat);
 		} elseif ($token_pair[0] == 'Organization' || $token_pair[0] == 'cbCompany') {
 			$res = $adb->query('SELECT * FROM vtiger_cbcompany WHERE defaultcompany=1');
 			$org_fields = $adb->getFieldsArray($res);
@@ -473,10 +472,10 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 							break;
 					}
 					$marcador = 'cbCompany.'.$token_pair[1];
-					$reemplazo = retrieve_from_db($marcador, $id, 'cbCompany');
+					$reemplazo = retrieve_from_db($marcador, $id, 'cbCompany', $applyformat);
 				} else {
 					$marcador = 'Accounts.'.$token_pair[1];
-					$reemplazo = retrieve_from_db($marcador, $accid, 'Accounts');
+					$reemplazo = retrieve_from_db($marcador, $accid, 'Accounts', $applyformat);
 				}
 			}
 		} else {
@@ -487,7 +486,7 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 			if (array_key_exists($token_pair[1], $iter_modules[$token_pair[0]][0])) {
 				$reemplazo = getTranslatedString(elimina_llave(html_entity_decode($iter_modules[$token_pair[0]][0][$token_pair[1]], ENT_QUOTES, $default_charset)), $module);
 			} else {
-				$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0]['productid'], $token_pair[0]);
+				$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0]['productid'], $token_pair[0], $applyformat);
 			}
 		} elseif (array_key_exists($module, $special_modules)) {
 			if (is_array($special_modules[$module])) {
@@ -495,7 +494,7 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 				foreach ($special_modules[$module] as $multvalue) {
 					$entitymod = getEntityModule($id);
 					if ($entitymod == $multvalue) {
-						$reemplazo = retrieve_from_db($multvalue.'.'.$token_pair[1], $id, $multvalue);
+						$reemplazo = retrieve_from_db($multvalue.'.'.$token_pair[1], $id, $multvalue, $applyformat);
 						if ($reemplazo == '{'.$token_pair[0].'.'.$token_pair[1].'}') {
 							$reemplazo = '';
 						}
@@ -504,10 +503,10 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 				}
 			} else {
 				$map = $special_modules[$module];
-				$reemplazo = retrieve_from_db($map.'.'.$token_pair[1], $id, $map);
+				$reemplazo = retrieve_from_db($map.'.'.$token_pair[1], $id, $map, $applyformat);
 			}
 		} else {
-			$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0], $token_pair[0]);
+			$reemplazo = retrieve_from_db($marcador, $iter_modules[$token_pair[0]][0], $token_pair[0], $applyformat);
 		}
 	} elseif (array_key_exists($module, $special_modules)) {
 		if (is_array($special_modules[$module])) {
@@ -515,7 +514,7 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 			foreach ($special_modules[$module] as $multvalue) {
 				$entitymod = getEntityModule($id);
 				if ($entitymod == $multvalue) {
-					$reemplazo = retrieve_from_db($multvalue.'.'.$token_pair[1], $id, $multvalue);
+					$reemplazo = retrieve_from_db($multvalue.'.'.$token_pair[1], $id, $multvalue, $applyformat);
 					if ($reemplazo == '{'.$token_pair[0].'.'.$token_pair[1].'}') {
 						$reemplazo = '';
 					}
@@ -524,10 +523,10 @@ function retrieve_from_db($marcador, $id, $module, $applyformat = true) {
 			}
 		} else {
 			$map = $special_modules[$module];
-			$reemplazo = retrieve_from_db($map.'.'.$token_pair[1], $id, $map);
+			$reemplazo = retrieve_from_db($map.'.'.$token_pair[1], $id, $map, $applyformat);
 		}
 	} elseif ($token_pair[0] == 'QuestionList' && $module == 'QuestionListCat') {
-		$reemplazo = retrieve_from_db($marcador, $id['Revision'], 'Revision');
+		$reemplazo = retrieve_from_db($marcador, $id['Revision'], 'Revision', $applyformat);
 	} else {
 		$reemplazo = '{'.$marcador.'}';
 	}
