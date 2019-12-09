@@ -123,12 +123,11 @@ function displayCoords(currObj,obj,mode,curr_row)
 	<td width=10% valign="top" class="lvtCol" align="right"><b>{$APP.LBL_NET_PRICE}</b></td>
 	</tr>
 
-	<tr valign="top" id="row1">
+	<tr valign="top" id="row1" data-corebosinvrow=1>
 
 	<!-- column 1 - delete link - starts -->
 	<td class="crmTableRow small lineOnTop">&nbsp;
 		<input type="hidden" id="deleted1" name="deleted1" value="0">
-		<input type="hidden" id="lineitem_id1" name="lineitem_id1" value="1">
 	</td>
 
 	<!-- column 2 - Product Name - starts -->
@@ -243,7 +242,6 @@ function displayCoords(currObj,obj,mode,curr_row)
 	</td>
 	<!-- column 5 - List Price with Discount, Total After Discount and Tax as table - ends -->
 
-
 	<!-- column 6 - Product Total - starts -->
 	<td class="crmTableRow small lineOnTop" align="right">
 		<table width="100%" cellpadding="5" cellspacing="0">
@@ -269,7 +267,9 @@ function displayCoords(currObj,obj,mode,curr_row)
 
    </tr>
    <!-- Product Details First row - Ends -->
-
+	{if !empty($customtemplaterows)}
+		{include file=$customtemplaterows ROWNO=1 ITEM=$ASSOCIATEDPRODUCTS.0}
+	{/if}
 </table>
 
 <table width="100%"  border="0" align="center" cellpadding="5" cellspacing="0" class="crmTable">
